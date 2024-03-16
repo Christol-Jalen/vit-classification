@@ -139,25 +139,29 @@ def fit_polynomial_ls_sgd(x,t,M, lr, batch_size):
 
     # Create a Linear Model: prediction = w_hat * input
     model = nn.Linear(M+1,1, bias=False, dtype=torch.float32)
-    loss_func = nn.MSELoss() #mean squared error as loss
+    criterion = nn.MSELoss() #mean squared error as loss
 
     optimiser = torch.optim.SGD(model.parameters(), lr=learning_rate) #standard stochastic gradient descent
     
     for epoch in range(num_epochs):
         for input, target in dataloader:
-            optimiser.zero_grad() #emptying gradients to avoid accumulation
-            prediction = model(input) #prediction step
-            loss = loss_func(prediction, target) #loss 
-            loss.backward() #derivative of loss
-            optimiser.step() #optimisation
+            # zero the gradient before each iteraction
+            optimiser.zero_grad()
+            # forward prpagation
+            prediction = model(input) 
+            # calculating loss between prediction and target
+            loss = criterion(prediction, target) 
+            # back propagation
+            loss.backward()
+            # start optimisation
+            optimiser.step()
 
-        if(epoch%1_00==0):
-            print("Epoch: " + str(epoch) + ", MSE loss: " + str((loss).tolist()))
+        if epoch % 100 == 0:
+            print("Epoch: " +  str(epoch) + " Loss: "+ str(loss.item()))
     
-    print("Epoch: " + str(epoch) + ", MSE loss: " + str((loss).tolist()))
-    
+    print("=" * 50)
+
     w_hat = model.weight.reshape(M+1, 1)
-    print("-" * 20 + "end" + "-" * 20)
     return w_hat
 
 

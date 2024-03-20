@@ -4,7 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
 import torch.optim as optim
 import random
-
+import time
 
 class CustomDataset(Dataset):
     def __init__(self, x_data, y_data):
@@ -89,8 +89,12 @@ def fit_polynomial_ls(x,t,M):
     Returns:
     w_hat (torch.Tensor: num of data points by 1): Optimal weight vector.
     """
+    # Generating polynomials
     x_poly = torch.pow(x, torch.arange(M+1, dtype=torch.float32))
+
+    # Computing optimal weights
     w_hat = torch.linalg.lstsq(x_poly, t).solution
+
     return w_hat
 
 
@@ -120,29 +124,33 @@ def fit_polynomial_ls_sgd(x,t,M, lr, batch_size):
 
     print("Starting gradient descent algorithm")
 
-    # Input Scalling
-
+    # Generating polynomials
     x_poly = torch.pow(x, torch.arange(M+1, dtype=torch.float32))
+    # Input Scalling
     x_poly_maxEachRow = torch.max(torch.abs(x_poly), dim=0).values
     x_poly_scaled = torch.div(x_poly,x_poly_maxEachRow)
+    # Defining dataset
     customDataset = CustomDataset(x_poly_scaled, t)
 
     # Initialize the data loader
     dataloader = DataLoader(customDataset, batch_size=batch_size, shuffle=True)
 
-    # Initialize weights randomly
+    # Initialize weights
     w_hat = torch.zeros(M + 1, 1, dtype=torch.float32, requires_grad=True)
-
-    num_epochs = 5000
-    learning_rate = lr
     
-
     # Create a Linear Model: prediction = w_hat * input
-    model = nn.Linear(M+1,1, bias=False, dtype=torch.float32)
-    criterion = nn.MSELoss() #mean squared error as loss
+    input_dim = M+1
+    output_dim = 1
+    model = nn.Linear(input_dim, output_dim, bias=False, dtype=torch.float32)
 
-    optimiser = torch.optim.SGD(model.parameters(), lr=learning_rate) #standard stochastic gradient descent
+    # Define loss function
+    criterion = nn.MSELoss() # mean squared error
+    # Define optimiser
+    optimiser = torch.optim.SGD(model.parameters(), lr) # stochastic gradient descent optimiser
     
+    # Tranining parameters
+    num_epochs = 5000
+
     for epoch in range(num_epochs):
         for input, target in dataloader:
             # zero the gradient before each iteraction
@@ -156,7 +164,7 @@ def fit_polynomial_ls_sgd(x,t,M, lr, batch_size):
             # start optimisation
             optimiser.step()
 
-        if epoch % 100 == 0:
+        if epoch % 1000 == 0:
             print("Epoch: " +  str(epoch) + " Loss: "+ str(loss.item()))
     
     print("=" * 50)
@@ -179,8 +187,10 @@ def gen_train_and_test_sets(M, w, numTrainSamples, numTestSamples, noiseStdDev):
     noiseStdDev (int): the standard deviation of noise added to the dataset
     
     Returns:
-    t_train (torch.Tensor: numTrainSamples by 1): training set
-    t_test (torch.Tensor: numTestSamples by 1): test set
+    y_train (torch.Tensor: numTrainSamples by 1): training set
+    y_test (torch.Tensor: numTestSamples by 1): test set
+    t_train (torch.Tensor: numTrainSamples by 1): training set - ground truth
+    t_test (torch.Tensor: numTestSamples by 1): test set - ground truth
     """
 
     x_train = torch.tensor([random.uniform(-20, 20) for _ in range(numTrainSamples)]).reshape(numTrainSamples,1)
@@ -196,14 +206,14 @@ def gen_train_and_test_sets(M, w, numTrainSamples, numTestSamples, noiseStdDev):
     return y_train, y_test, t_train, t_test
 
 
-def main():
+if __name__=="__main__":
 
     '''
     Use polynomial_fun (𝑀 = 2, 𝐰 = [1,2,3]^T) to generate a training set and a test set, in the
     form of respectively and uniformly sampled 20 and 10 pairs of 𝑥, 𝑥𝜖[−20, 20], and 𝑡. The 
     observed 𝑡 values are obtained by adding Gaussian noise (standard deviation being 0.5) to 𝑦.
     '''
-
+    # observed training data; observed test data; true training data; true test data
     y_train, y_test, t_train, t_test = gen_train_and_test_sets(2, [[1], [2], [3]], 20, 10, 0.5)
 
     # print("%s" % "the test set is:")
@@ -215,83 +225,58 @@ def main():
     and test sets.
     '''
 
-    # M = 2
-    w_hat_M2_train = fit_polynomial_ls(y_train, t_train, M=2)
-    y_hat_M2_train = polynomial_fun(w_hat_M2_train, y_train)
-    y_hat_M2_test = polynomial_fun(w_hat_M2_train, y_test)
-    print("w_hat_M2_train:")
-    print(w_hat_M2_train)
-    print("y_hat_M2_train:")
-    print(y_hat_M2_train)
-    print("y_hat_M2_test")
-    print(y_hat_M2_test)
+    print("="*50)
+    print("LS prediction")
+    
+    '''
+    a) Report the mean and standard deviation in the difference between observed training data and
+    underlying "true" polynomial curve
+    '''
+    mean_diff_ob = torch.mean(y_train - t_train)
+    std_diff_ob =  (y_train - t_train).std()
+    print("The mean difference between the observed training data and the true data is: \n" + str(mean_diff_ob.item()))
+    print("The standard deviation between observed training data and the true data is: \n" + str(std_diff_ob.item()))
 
-    # M = 3
-    w_hat_M3_train = fit_polynomial_ls(y_train, t_train, M=3)
-    y_hat_M3_train = polynomial_fun(w_hat_M3_train, y_train)
-    y_hat_M3_test = polynomial_fun(w_hat_M3_train, y_test)
-    print("w_hat_M3_train:")
-    print(w_hat_M3_train)
-    print("y_hat_M3_train")
-    print(y_hat_M3_train)
-    print("y_hat_M3_test")
-    print(y_hat_M3_test)
+    for M in [2,3,4]:
+        print("-"*50)
+        print("M = " + str(M))
+        w_hat_train = fit_polynomial_ls(y_train, t_train, M=M) # predicted weight
+        y_hat_train = polynomial_fun(w_hat_train, y_train) # LS predicted training data
+        y_hat_test = polynomial_fun(w_hat_train, y_test) # LS predicted test data
 
-    # M = 4
-    w_hat_M4_train = fit_polynomial_ls(y_train, t_train, M=4)
-    y_hat_M4_train = polynomial_fun(w_hat_M4_train, y_train)
-    y_hat_M4_test = polynomial_fun(w_hat_M4_train, y_test)
-    print("w_hat_M4_train")
-    print(w_hat_M4_train)
-    print("y_hat_M4_train")
-    print(y_hat_M4_train)
-    print("y_hat_M4_test")
-    print(y_hat_M4_test)
+        '''
+        b) Report the mean and standard deviation in the difference between the "LS-predicted" values and
+        underlying "true" polynomial curve
+        '''
+        mean_diff_ls = torch.mean(y_hat_train - t_train)
+        std_diff_ls =  (y_hat_train - t_train).std()
+        print("The mean difference between the LS-predicted training data and the true data is: \n" + str(mean_diff_ls.item()))
+        print("The standard deviation between the LS-predicted training data and the true data is: \n" + str(std_diff_ls.item()))
+
+
 
     '''
     Use fit_polynomial_sgd (𝑀𝜖{2,3,4}) to optimise the weight vector 𝐰̂ using the training set. For each 𝑀, compute the predicted target values 𝑦̂ for all 𝑥 in both the training and test sets.
-    '''    
-    learning_rate = 0.1
+    ''' 
+    print("="*50)
+    print("SGD prediction")   
+    learning_rate = 0.05
     batch_size = 10
 
-    # M = 2
-    w_hat_M2_train = fit_polynomial_ls_sgd(y_train, t_train, M=2, lr=learning_rate, batch_size=batch_size)
-    y_hat_M2_train = polynomial_fun(w_hat_M2_train, y_train)
-    y_hat_M2_test = polynomial_fun(w_hat_M2_train, y_test)
-    print("w_hat_M2_train:")
-    print(w_hat_M2_train)
-    print("y_hat_M2_train:")
-    print(y_hat_M2_train)
-    print("y_hat_M2_test")
-    print(y_hat_M2_test)
+    for M in [2,3,4]:
+        print("-"*50)
+        print("M = " + str(M))
+        w_hat_train_sgd = fit_polynomial_ls_sgd(y_train, t_train, M=M, lr=learning_rate, batch_size=batch_size)
+        y_hat_train_sgd = polynomial_fun(w_hat_train_sgd, y_train)
+        y_hat_test_sgd = polynomial_fun(w_hat_train_sgd, y_test)
 
-    # M = 3
-    w_hat_M3_train = fit_polynomial_ls_sgd(y_train, t_train, M=3, lr=learning_rate, batch_size=batch_size)
-    y_hat_M3_train = polynomial_fun(w_hat_M3_train, y_train)
-    y_hat_M3_test = polynomial_fun(w_hat_M3_train, y_test)
-    print("w_hat_M3_train:")
-    print(w_hat_M3_train)
-    print("y_hat_M3_train")
-    print(y_hat_M3_train)
-    print("y_hat_M3_test")
-    print(y_hat_M3_test)
-
-    # M = 4
-    w_hat_M4_train = fit_polynomial_ls_sgd(y_train, t_train, M=4, lr=learning_rate, batch_size=batch_size)
-    y_hat_M4_train = polynomial_fun(w_hat_M4_train, y_train)
-    y_hat_M4_test = polynomial_fun(w_hat_M4_train, y_test)
-    print("w_hat_M4_train")
-    print(w_hat_M4_train)
-    print("y_hat_M4_train")
-    print(y_hat_M4_train)
-    print("y_hat_M4_test")
-    print(y_hat_M4_test)
+        '''
+        Report the mean and standard deviation in the difference between the "SGD-predicted" values and
+        underlying "true" polynomial curve
+        '''
+        mean_diff_sgd = torch.mean(y_hat_train_sgd - t_train)
+        std_diff_sgd =  (y_hat_train_sgd - t_train).std()
+        print("The mean difference between the SGD-predicted training data and the true data is: \n" + str(mean_diff_sgd.item()))
+        print("The standard deviation between the SGD-predicted training data and the true data is: \n" + str(std_diff_sgd.item()))
 
 
-
-
-    return None
-
-
-if __name__=="__main__":
-    main()

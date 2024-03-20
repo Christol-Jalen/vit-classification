@@ -55,21 +55,12 @@ def polynomial_fun(w, x):
     Returns:
     - y (torch.Tensor): tensor of function values
     """
-    # Ensure w and x are PyTorch tensors
-    w = torch.tensor(w, dtype=torch.float32)
-    x = torch.tensor(x, dtype=torch.float32)
-    
     size = w.shape[0]
     powers_of_x = torch.pow(x, torch.arange(size, dtype=torch.float32))
     y = torch.matmul(powers_of_x, w)
     
     return y
 
-# # Testing:
-# w = [[1], [2], [3]]  # Weight vector
-# x = [[5], [6]]  # Input scalar variable
-# y = polynomial_fun(w, x)
-# print(y) 
 
 '''
 Using the linear algebra modules in TensorFlow/PyTorch, implement a least square solver for fitting
@@ -98,15 +89,6 @@ def fit_polynomial_ls(x,t,M):
     return w_hat
 
 
-# # Testing
-# x = torch.tensor([[5], [6], [7], [8]], dtype=torch.float32)
-# # Some polynomial function as target values
-# t = 5 + 3*x  + 2*x**2
-# # Fit a polynomial of degree 2
-# M = 2
-# w = fit_polynomial_ls(x, t, M)
-# print("Optimal weight vector:", w)
-
 def fit_polynomial_ls_sgd(x,t,M, lr, batch_size):
     """
     Fits a polynomial function to the given data points using minibatch gradient descent algorithm.
@@ -121,9 +103,6 @@ def fit_polynomial_ls_sgd(x,t,M, lr, batch_size):
     Returns:
     w_hat (torch.Tensor: num of data points by 1): Optimal weight vector.
     """
-
-    print("Starting gradient descent algorithm")
-
     # Generating polynomials
     x_poly = torch.pow(x, torch.arange(M+1, dtype=torch.float32))
     # Input Scalling
@@ -149,7 +128,7 @@ def fit_polynomial_ls_sgd(x,t,M, lr, batch_size):
     optimiser = torch.optim.SGD(model.parameters(), lr) # stochastic gradient descent optimiser
     
     # Tranining parameters
-    num_epochs = 5000
+    num_epochs = 10000
 
     for epoch in range(num_epochs):
         for input, target in dataloader:
@@ -164,10 +143,8 @@ def fit_polynomial_ls_sgd(x,t,M, lr, batch_size):
             # start optimisation
             optimiser.step()
 
-        if epoch % 1000 == 0:
-            print("Epoch: " +  str(epoch) + " Loss: "+ str(loss.item()))
-    
-    print("=" * 50)
+        if epoch % 2500 == 2499:
+            print("Epoch: " +  str(epoch+1) + " Loss: "+ str(loss.item()))
 
     w_hat = model.weight.reshape(M+1, 1)
     return w_hat
@@ -194,12 +171,12 @@ def gen_train_and_test_sets(M, w, numTrainSamples, numTestSamples, noiseStdDev):
     """
 
     x_train = torch.tensor([random.uniform(-20, 20) for _ in range(numTrainSamples)]).reshape(numTrainSamples,1)
-    y_train = torch.tensor(polynomial_fun(w, x_train), dtype=torch.float32) # converte to torch tensor
+    y_train = polynomial_fun(w, x_train)
     noise_train = torch.randn(numTrainSamples).reshape(20,1) * noiseStdDev
     t_train = y_train + noise_train
 
     x_test = torch.tensor([random.uniform(-20, 20) for _ in range(numTestSamples)]).reshape(numTestSamples,1)
-    y_test = torch.tensor(polynomial_fun(w, x_test), dtype=torch.float32) # converte to torch tensor
+    y_test = polynomial_fun(w, x_test)
     noise_test = torch.randn(numTestSamples).reshape(10,1) * noiseStdDev
     t_test = y_test + noise_test
 
@@ -213,8 +190,11 @@ if __name__=="__main__":
     form of respectively and uniformly sampled 20 and 10 pairs of 𝑥, 𝑥𝜖[−20, 20], and 𝑡. The 
     observed 𝑡 values are obtained by adding Gaussian noise (standard deviation being 0.5) to 𝑦.
     '''
+    # parameters for generating dataset
+    M_dataset = 2
+    weight = torch.tensor([[2], [3], [4]], dtype=torch.float32)
     # observed training data; observed test data; true training data; true test data
-    y_train, y_test, t_train, t_test = gen_train_and_test_sets(2, [[1], [2], [3]], 20, 10, 0.5)
+    y_train, y_test, t_train, t_test = gen_train_and_test_sets(M_dataset, weight, 20, 10, 0.5)
 
     # print("%s" % "the test set is:")
     # print(t_test)
@@ -227,32 +207,60 @@ if __name__=="__main__":
 
     print("="*50)
     print("LS prediction")
-    
+    print("-"*50)
     '''
-    a) Report the mean and standard deviation in the difference between observed training data and
+    Report the mean and standard deviation in the difference between observed training data and
     underlying "true" polynomial curve
     '''
     mean_diff_ob = torch.mean(y_train - t_train)
     std_diff_ob =  (y_train - t_train).std()
-    print("The mean difference between the observed training data and the true data is: \n" + str(mean_diff_ob.item()))
-    print("The standard deviation between observed training data and the true data is: \n" + str(std_diff_ob.item()))
+    print("\nThe mean difference between the observed training data and the true data is: \n" + str(mean_diff_ob.item()))
+    print("\nThe standard deviation between observed training data and the true data is: \n" + str(std_diff_ob.item()))
 
-    for M in [2,3,4]:
+    # Define a list containing the true weights
+    w_true_list = [torch.tensor([1,2,3]), torch.tensor([1,2,3,0]), torch.tensor([1,2,3,0,0])]
+
+    rmse_ls_w_list = []
+    rmse_ls_y_list = []
+    time_fitting_list = []
+
+    for i, M in enumerate([2,3,4], start=0):
         print("-"*50)
         print("M = " + str(M))
-        w_hat_train = fit_polynomial_ls(y_train, t_train, M=M) # predicted weight
-        y_hat_train = polynomial_fun(w_hat_train, y_train) # LS predicted training data
-        y_hat_test = polynomial_fun(w_hat_train, y_test) # LS predicted test data
+        time_start = time.time()
+        w_hat_train_ls = fit_polynomial_ls(y_train, t_train, M=M) # predicted training weight
+        time_end = time.time()
+        w_hat_test_ls = fit_polynomial_ls(y_test, t_test, M=M) # predicted training weight
+        y_hat_train_ls = polynomial_fun(w_hat_train_ls, y_train) # LS predicted training data
+        y_hat_test_ls = polynomial_fun(w_hat_train_ls, y_test) # LS predicted test data
 
         '''
-        b) Report the mean and standard deviation in the difference between the "LS-predicted" values and
+        Report the mean and standard deviation in the difference between the "LS-predicted" values and
         underlying "true" polynomial curve
         '''
-        mean_diff_ls = torch.mean(y_hat_train - t_train)
-        std_diff_ls =  (y_hat_train - t_train).std()
-        print("The mean difference between the LS-predicted training data and the true data is: \n" + str(mean_diff_ls.item()))
-        print("The standard deviation between the LS-predicted training data and the true data is: \n" + str(std_diff_ls.item()))
+        mean_diff_ls = torch.mean(y_hat_train_ls - t_train)
+        std_diff_ls =  (y_hat_train_ls - t_train).std()
+        print("\nThe mean difference between the LS-predicted training data and the true data is: \n" + str(mean_diff_ls.item()))
+        print("\nThe standard deviation between the LS-predicted training data and the true data is: \n" + str(std_diff_ls.item()))
 
+        '''
+        Calculating the RMSEs in w and append it to a list for later comparison
+        '''
+        w_true = w_true_list[i]
+        rmse_ls_w = torch.sqrt(torch.mean((w_hat_test_ls - w_true)**2))
+        rmse_ls_w_list.append(rmse_ls_w.item())
+
+        '''
+        Calculating the RMSEs in y and append it to a list for later comparison
+        '''
+        rmse_ls_y = torch.sqrt(torch.mean((y_hat_test_ls - t_test)**2))
+        rmse_ls_y_list.append(rmse_ls_y.item())
+
+        '''
+        Calculating the time spent for LS fitting and append it to a list for later comparison
+        '''
+        time_fitting = time_end - time_start
+        time_fitting_list.append(time_fitting)
 
 
     '''
@@ -262,11 +270,20 @@ if __name__=="__main__":
     print("SGD prediction")   
     learning_rate = 0.05
     batch_size = 10
+    
+    rmse_sgd_w_list = []
+    rmse_sgd_y_list = []
+    time_training_list = []
 
-    for M in [2,3,4]:
+    for i, M in enumerate([2,3,4], start=0):
         print("-"*50)
         print("M = " + str(M))
+        print("\ntraining for the train set:")
+        time_start = time.time()
         w_hat_train_sgd = fit_polynomial_ls_sgd(y_train, t_train, M=M, lr=learning_rate, batch_size=batch_size)
+        time_end = time.time()
+        print("training for the test set:")
+        w_hat_test_sgd = fit_polynomial_ls_sgd(y_test, t_test, M=M, lr=learning_rate, batch_size=batch_size)
         y_hat_train_sgd = polynomial_fun(w_hat_train_sgd, y_train)
         y_hat_test_sgd = polynomial_fun(w_hat_train_sgd, y_test)
 
@@ -276,7 +293,41 @@ if __name__=="__main__":
         '''
         mean_diff_sgd = torch.mean(y_hat_train_sgd - t_train)
         std_diff_sgd =  (y_hat_train_sgd - t_train).std()
-        print("The mean difference between the SGD-predicted training data and the true data is: \n" + str(mean_diff_sgd.item()))
-        print("The standard deviation between the SGD-predicted training data and the true data is: \n" + str(std_diff_sgd.item()))
+        print("\nThe mean difference between the SGD-predicted training data and the true data is: \n" + str(mean_diff_sgd.item()))
+        print("\nThe standard deviation between the SGD-predicted training data and the true data is: \n" + str(std_diff_sgd.item()))
+
+        '''
+        Calculating the RMSEs in w and append it to a list for later comparison
+        '''
+        w_true = w_true_list[i]
+        rmse_sgd_w = torch.sqrt(torch.mean((w_hat_test_sgd - w_true)**2))
+        rmse_sgd_w_list.append(rmse_sgd_w.item())
+
+        '''
+        Calculating the RMSEs in y and append it to a list for later comparison
+        '''
+        rmse_sgd = torch.sqrt(torch.mean((y_hat_test_sgd - t_test)**2))
+        rmse_sgd_y_list.append(rmse_sgd.item())
+
+        '''
+        Calculating the time spent for SGD training and append it to a list for later comparison
+        '''
+        time_training = time_end - time_start
+        time_training_list.append(time_training)
+
+'''
+Compare the accuracy of the implemetation using the two methods with ground-truth on test set
+and report the RMSEs in both w and y using printed messages
+'''
+print("="*50)
+print("Compare the accuracy in w and y using the two methods:")
+print("\nThe RMSEs for LS-predicted w with M in [2, 3, 4] are: \n" + str(rmse_ls_w_list))
+print("\nThe RMSEs for SGD-predicted w with M in [2, 3, 4] are: \n" + str(rmse_sgd_w_list))
+print("\nThe RMSEs for LS-predicted y with M in [2, 3, 4] are: \n" + str(rmse_ls_y_list))
+print("\nThe RMSEs for SGD-predicted y with M in [2, 3, 4] are: \n" + str(rmse_sgd_y_list))
+print("="*50)
+print("Compare the speed in fitting/training using the two methods:")
+print("\nThe time spent for LS fitting with M in [2, 3, 4] are (seconds): \n" + str(time_fitting_list))
+print("\nThe time spent for SGD training w with M in [2, 3, 4] are (seconds): \n" + str(time_training_list))
 
 

@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import torchvision.transforms as transforms
-from typing import List
 import torchvision.models as models
 
 
@@ -18,8 +17,8 @@ class Net(nn.Module):
         super(Net, self).__init__()
         self.model = models.VisionTransformer(
             num_classes = num_classes,
-            image_size = 32, # size(resolution) of each image
-            patch_size = 16, # size(resolution) of each patch
+            image_size = 32, # size of each CIFAR10 image
+            patch_size = 16, # size of each patch
             num_layers = 12, # number of hidden layers
             num_heads = 12, # number of a attention heads 
             hidden_dim = 384, # dimensionality of the encoder layers and the pooler layer (default 768)

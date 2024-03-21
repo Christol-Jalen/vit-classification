@@ -92,7 +92,8 @@ def evaluate_on_holdout_test(loader, model, device):
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             total_loss += loss.item()
-            total_count += inputs.size(0)
+            #total_count += inputs.size(0)
+            total_count += 1
             _, predicted = torch.max(outputs, 1)
             c = (predicted == labels).squeeze()
             for i in range(labels.size(0)):

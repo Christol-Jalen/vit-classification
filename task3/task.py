@@ -18,6 +18,10 @@ import math
 Validation Metric 1: Root Mean Square Error
 '''
 def calculate_rmse(loader, model, device):
+    '''
+    This function calculates the root mean square error between
+    the prediction and the ground-truth
+    '''
     model.eval()  # Set model to evaluation mode
     total_loss = 0.0
     total_count = 0
@@ -39,7 +43,12 @@ def calculate_rmse(loader, model, device):
 Validation Metric 2: F1 Score
 '''
 def calculate_f1_score(loader, model, device):
-    model.eval()
+    '''
+    This function calculate the F1 score, which is the harmonic mean of 
+    precision and recall. A High F1 score ([0,1]) indicate good precision 
+    and recall
+    '''
+    model.eval() # Set model to evaluation mode
     n_classes = 10  # CIFAR-10 has 10 classes
     class_correct = list(0. for _ in range(n_classes))
     class_total = list(0. for _ in range(n_classes))
@@ -73,17 +82,16 @@ Report a summary of loss values and the metrics on the holdout test set. Compare
 obtained during development.
 '''
 def evaluate_on_holdout_test(loader, model, device):
+    '''
+    This function will return a model's output, including average loss, root mean square errors and
+    average F1 score, on a certain data loader.
+    '''
     model.eval()  # Set model to evaluation mode
     total_loss = 0.0
     average_loss = 0.0
     total_count = 0
-    n_classes = 10  # CIFAR-10 has 10 classes
-    class_correct = list(0. for _ in range(n_classes))
-    class_total = list(0. for _ in range(n_classes))
     criterion = torch.nn.CrossEntropyLoss()
     #criterion = torch.nn.MSELoss(reduction='sum') 
-    eps = 1e-9  # To avoid division by zero
-
     with torch.no_grad():
         for data in loader:
             inputs, labels = data
@@ -94,23 +102,14 @@ def evaluate_on_holdout_test(loader, model, device):
             total_loss += loss.item()
             #total_count += inputs.size(0)
             total_count += 1
-            _, predicted = torch.max(outputs, 1)
-            c = (predicted == labels).squeeze()
-            for i in range(labels.size(0)):
-                label = labels[i]
-                class_correct[label] += c[i].item()
-                class_total[label] += 1
 
     # Calculate Average Loss
     average_loss = total_loss / total_count        
     # Calculate RMSE
-    rmse = math.sqrt(average_loss)
+    rmse = calculate_rmse(loader, model, device)
 
     # Calculate F1 Score
-    precision = [class_correct[i] / (np.sum([predicted == i for predicted in class_correct]) + eps) for i in range(n_classes)]
-    recall = [class_correct[i] / (class_total[i] + eps) for i in range(n_classes)]
-    f1_scores = [2 * (precision[i] * recall[i]) / (precision[i] + recall[i] + eps) for i in range(n_classes)]
-    avg_f1_score = np.mean(f1_scores)
+    avg_f1_score = calculate_f1_score(loader, model, device)
 
     return average_loss, rmse, avg_f1_score
 
@@ -252,6 +251,7 @@ if __name__ == '__main__':
     rmse_net2_list = []
     f1_net2_list = []
     for epoch in range(train_epochs):  # loop over the dataset multiple times
+        start_time = time.time()  # Start time of the epoch
         for i, data in enumerate(train_loader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
@@ -283,6 +283,10 @@ if __name__ == '__main__':
         avg_f1_score = calculate_f1_score(validation_loader, net_2, device)
         print("Epoch "+ str(epoch+1) + " F1 Score: " + str(rmse))
 
+        end_time = time.time()  # End time of the epoch
+        epoch_time = end_time - start_time  
+        print(f"Epoch {epoch + 1} completed in {epoch_time:.2f} seconds.")
+
         loss_net2_list.append(loss.item())
         rmse_net2_list.append(rmse)
         f1_net2_list.append(avg_f1_score)
@@ -295,6 +299,7 @@ if __name__ == '__main__':
     print("="*30)
 
     # Summary of loss values and metrics on the holdout test set
+    print("Evaluating models on Holdout Test Set ...")
     loss_1, rmse_1, f1_1 = evaluate_on_holdout_test(holdout_test_loader, net_1, device)
     print(f"Method 1 on Holdout Test Set - Loss: {loss_1:.3f}, RMSE: {rmse_1:.3f}, F1 Score: {f1_1:.3f}")
 

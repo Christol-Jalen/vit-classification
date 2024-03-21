@@ -301,18 +301,18 @@ if __name__ == '__main__':
     print(f"Method 2 on Holdout Test Set - Loss: {loss_2:.3f}, RMSE: {rmse_2:.3f}, F1 Score: {f1_2:.3f}")
 
     # Compare the results on holdout test set to the results obtained during the development
-    print("Method 1 loss during epoch 1-20:")
+    print("Method 1 Loss during development in epoch 1-20:")
     print(loss_net1_list)
-    print("Method 1 rmse during epoch 1-20:")
+    print("Method 1 RMSE during development in epoch 1-20:")
     print(rmse_net1_list)
-    print("Method 1 F1 score during epoch 1-20:")
+    print("Method 1 F1 score during development in epoch 1-20:")
     print(f1_net1_list)
 
-    print("Method 2 loss during epoch 1-20:")
+    print("Method 2 Loss during development in epoch 1-20:")
     print(loss_net2_list)
-    print("Method 2 rmse during epoch 1-20:")
+    print("Method 2 RMSE during development in epoch 1-20:")
     print(rmse_net2_list)
-    print("Method 2 F1 score during epoch 1-20:")
+    print("Method 2 F1 score during development in epoch 1-20:")
     print(f1_net2_list)
 
     

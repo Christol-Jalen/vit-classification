@@ -1,7 +1,3 @@
-# train script
-# adapted from: https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
-
-
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -64,11 +60,6 @@ if __name__ == '__main__':
     dataiter = iter(trainloader)
     images, labels = next(dataiter) # note: for pytorch versions (<1.14) use dataiter.next()
 
-    # im = Image.fromarray((torch.cat(images.split(1,0),3).squeeze()/2*255+.5*255).permute(1,2,0).numpy().astype('uint8'))
-    # im.save("train_pt_images.jpg") # show a batch of images
-    # print('train_pt_images.jpg saved.') 
-    # print('Ground truth labels:' + ' '.join('%5s' % classes[labels[j]] for j in range(batch_size)))
-
     # performing mixup algorithm
     alpha = 0.3 # the paper suggested that alpha in [0.1, 0.4] will improve the model performance
     sampling_method = 1 # can choose sampling method, either 1 or 2
@@ -82,16 +73,15 @@ if __name__ == '__main__':
 
     
     train_epochs = 20
-    MixUp = mixup(alpha, sampling_method)
 
-    #=======================Method 1=============================
+    #=====================================Method 1=========================================
     ## VisionTransformer
     net_1 = Net(num_classes=len(classes)) # create a network for method 1
     net_1.to(device)
 
     ## loss and optimiser
-    #criterion = torch.nn.CrossEntropyLoss()
-    criterion = torch.nn.MSELoss() # change to MSE loss because the mixed label contains floats
+    criterion = torch.nn.CrossEntropyLoss()
+    #criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(net_1.parameters(), lr=0.001, momentum=0.9)
 
     sampling_method = 1
@@ -132,14 +122,14 @@ if __name__ == '__main__':
     print('Model for method 1 is saved.')
     print("="*30)
 
-    #=====================================Method 2=================================================
+    #=====================================Method 2===============================================
     ## VisionTransformer
     net_2 = Net(num_classes=len(classes)) # create a new network for method 2
     net_2.to(device)
 
     ## loss and optimiser
-    #criterion = torch.nn.CrossEntropyLoss()
-    criterion = torch.nn.MSELoss() # change to MSE loss because the mixed label contains floats
+    criterion = torch.nn.CrossEntropyLoss()
+    #criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(net_2.parameters(), lr=0.001, momentum=0.9)
 
     sampling_method = 2
